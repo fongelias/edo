@@ -1,0 +1,82 @@
+echo "starting edo"
+# config
+DEBUG=true
+SCRIPT_DIR=$(dirname $0)
+# validate proper installation
+eval "./$SCRIPT_DIR/scripts/install_edo.sh"
+# identity vars
+GIT_USER=$(git config user.name)
+# task definitions
+## utility
+debugEcho() {
+	if [ "$DEBUG" = true ]; then
+		echo "$1"
+	fi
+}
+
+enterToContinue() {
+	read -p "Press ENTER to run $1"
+}
+
+exitIfEmpty() {
+	ARGUMENT_NAME="$1"
+	ARGUMENT="$2"
+	if [ -z "$ARGUMENT" ]; then
+		echo "[$ARGUMENT_NAME] argument is missing"
+		exit 1;
+	fi
+}
+
+## new project; -n
+createNewProject() {
+	PROJECT_NAME=$1
+	exitIfEmpty "PROJECT_NAME" $PROJECT_NAME
+	# create app
+	## create typescript react app
+	yarn create react-app "$PROJECT_NAME" --template typescript
+	## update file structure
+	mkdir "$PROJECT_NAME/docs"
+	mkdir -p "$PROJECT_NAME/src/components/containers"
+	mkdir -p "$PROJECT_NAME/src/components/presentational"
+	mkdir "$PROJECT_NAME/src/scss"
+	## copy templates
+	### copy config template
+	cp "$SCRIPT_DIR/templates/tsconfig.json" "$PROJECT_NAME"
+	### copy template types
+	cp "$SCRIPT_DIR/templates/react-app-env.d.ts" "$PROJECT_NAME/src"
+	### copy template styles
+	cp -vr "$SCRIPT_DIR/templates/scss" "$PROJECT_NAME/src"
+	### copy utility components
+	cp -vr "$SCRIPT_DIR/templates/" "$PROJECT_NAME/src/components/presentational"
+	# repository config
+	initializeGit $PROJECT_NAME
+	# ci/cd config
+	cp "$SCRIPT_DIR/templates/travis.yml" "$PROJECT_NAME"
+}
+
+initializeGit() {
+	PROJECT_NAME=$1
+	ORIGINAL_LOCATION=$(pwd)
+	exitIfEmpty "PROJECT_NAME" $PROJECT_NAME
+	cd $PROJECT_NAME
+	git init
+	git remote add origin "git@github.com:$GIT_USER/$PROJECT_NAME.git"
+	cd $ORIGINAL_LOCATION
+}
+
+## help; -h
+help() {
+	echo "
+		Options:
+		h) help
+		n) new project
+	"
+}
+# call scripts specified in args
+while getopts hn: option
+do
+	case $option in
+		h) help;;
+		n) createNewProject $OPTARG;;
+	esac
+done
